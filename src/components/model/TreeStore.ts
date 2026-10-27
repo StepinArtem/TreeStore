@@ -1,29 +1,32 @@
-export interface iTreeStore {
-  id: number | string
-  parent: number | string | null
+export type TId<T = string | number> = T//TId = number | string
+
+export interface ITreeNode {
+  id: TId
+  parent: TId | null
   label: string
 }
 
-export class TreeStore {
-  items: Array<iTreeStore>
-  childrenMap: Map<number | string, iTreeStore>
-  itemMap: Map<string | number, iTreeStore>
-  constructor(items: Array<iTreeStore>) {
+export class TreeStore<T extends ITreeNode> {
+  items: T[]
+  childrenMap: Map<T['id'], T[]>
+  itemMap: Map<T['id'], T>
+
+  constructor(items: T[]) {
     this.items = items
     this.childrenMap = new Map()
-    this.itemMap = new Map(this.items.map((item) => [item.id, item]))
+    this.itemMap = new Map(items.map((item) => [item.id, item]))
     this.createChildren()
   }
 
-  getAll() {
+  getAll(): T[] {
     return [...this.itemMap.values()]
   }
 
-  getItem(id: number | string): iTreeStore | undefined {
+  getItem(id: T['id']): T | undefined {
     return this.itemMap.get(id)
   }
 
-  getChildren(id: number | string) {
+  getChildren(id: T['id']): T[] {
     return this.getAll().filter((item) => item.parent === id)
   }
 
@@ -34,19 +37,21 @@ export class TreeStore {
     this.childrenMap = new Map()
     for (const item of this.getAll()) {
       const parentId = item.parent
-      if (parentId !== null && !this.childrenMap.has(parentId)) {
-        this.childrenMap.set(parentId, [])
+      if (parentId !== null) {
+        if (!this.childrenMap.has(parentId)) {
+          this.childrenMap.set(parentId, [])
+        }
+        this.childrenMap.get(parentId)!.push(item)
       }
-      this.childrenMap.get(parentId)?.push(item)
     }
   }
 
-  getAllChildren(id: number | string) {
-    const result = []
-    const stack = [id] // Используем стек вместо рекурсии
+  getAllChildren(id: T['id']): T[] {
+    const result: T[] = []
+    const stack: T['id'][] = [id] // Используем стек вместо рекурсии
 
     while (stack.length > 0) {
-      const currentId = stack.pop()
+      const currentId = stack.pop()!
       const children = this.childrenMap.get(currentId) || []
 
       result.push(...children)
@@ -57,9 +62,9 @@ export class TreeStore {
     return result
   }
 
-  getAllParents(id: number | string) {
-    const result = []
-    let currentItem = this.itemMap.get(id)
+  getAllParents(id: T['id']): T[] {
+    const result: T[] = []
+    let currentItem: T | undefined = this.itemMap.get(id)
 
     if (!currentItem) {
       return result
@@ -77,68 +82,73 @@ export class TreeStore {
     return result
   }
 
-  addItem(item: iTreeStore) {
-    //this.items.push(item)
+  addItem(item: T) {
+    this.items.push(item)
     this.itemMap.set(item.id, item)
-    // const parentId = item.parent
-    // if (parentId !== null && !this.childrenMap.has(parentId)) {
-    //   this.childrenMap.set(parentId, [])
-    // }
-    // this.childrenMap.get(parentId)?.push(item)
 
-    // Перестраиваем индекс после удаления
-    // this.createChildren()
+    const parentId = item.parent
+    if (parentId !== null) {
+      if (!this.childrenMap.has(parentId)) {
+        this.childrenMap.set(parentId, [])
+      }
+      this.childrenMap.get(parentId)!.push(item)
+    }
   }
 
-  removeItem(id: number | string) {
-    const toRemove = new Set()
-    const stack = [id] // Используем стек для итеративного обхода
+  removeItem(id: T['id']) {
+    const toRemove = new Set<T['id']>()
+    const stack: T['id'][] = [id] // Используем стек для итеративного обхода
 
     // Собираем все ID для удаления
     while (stack.length > 0) {
-      const currentId = stack.pop()
+      const currentId = stack.pop()!
       toRemove.add(currentId)
 
       // Получаем детей через индекс (O(1) вместо O(n))
       const children = this.childrenMap.get(currentId) || []
       children.forEach((child) => stack.push(child.id))
     }
-    const index = this.getAll().findIndex((user) => user.id === id)
 
-    if (index !== -1) {
-      this.getAll().splice(index, 1) // Удаляет 1 элемент начиная с найденного индекса
+    // Удаляем из itemMap
+    for (const id of toRemove) {
+      this.itemMap.delete(id)
     }
-    // удаляем исходный элемент
-    this.itemMap.delete(id)
+
+    // Удаляем из childrenMap
+    for (const id of toRemove) {
+      this.childrenMap.delete(id)
+    }
+
+    // Удаляем из items
+    this.items = this.items.filter((item) => !toRemove.has(item.id))
   }
 
-  updateItem(elem: iTreeStore) {
+  updateItem(elem: T) {
     const { id, parent } = elem
 
     if (id === undefined) {
       throw new Error('Поле "id" обязательно для обновления элемента')
     }
 
-    const index = this.getAll().findIndex((item) => item.id === id)
-    if (index === -1) {
+    const existingItem = this.itemMap.get(id)
+    if (!existingItem) {
       throw new Error(`Элемент с ID ${id} не найден в хранилище`)
     }
 
-    // this.getAll()[index] = {
-    //   // Сохраняем обязательные поля, если они не переданы
-    //   id: this.getAll()[index].id,
-    //   parent: parent !== undefined ? parent : this.getAll()[index].parent,
-    //   // Остальные поля перезаписываем или добавляем
-    //   ...elem,
-    // }
-
-    const existingItem = this.itemMap.get(id)
     this.itemMap.set(id, {
       ...existingItem,
       ...elem,
     })
 
-    // Перестраиваем индекс после удаления
-    // this.createChildren()
+    // Обновляем items массив
+    const index = this.items.findIndex((item) => item.id === id)
+    if (index !== -1) {
+      this.items[index] = this.itemMap.get(id)!
+    }
+
+    // Перестраиваем childrenMap если изменился parent
+    if (parent !== undefined && parent !== existingItem.parent) {
+      this.createChildren()
+    }
   }
 }

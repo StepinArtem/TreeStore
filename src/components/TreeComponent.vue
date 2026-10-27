@@ -1,50 +1,48 @@
 <script setup lang="ts">
-import { TreeStore, iTreeStore } from '@/components/model/TreeStore'
+import { computed } from 'vue'
+import { TreeStore, type ITreeNode, type TId } from '@/components/model/TreeStore'
 
 const props = defineProps<{
   msg: string
-  items: {
-    type: Array<iTreeStore>
-    default(): []
-  }
+  items: ITreeNode[]
 }>()
 
-const tree = new TreeStore(props.items)
+const tree = computed(() =>new TreeStore<ITreeNode>(props.items))
 
-function createChildren() {
-  tree.createChildren()
-}
+// function createChildren() {
+//   tree.value.createChildren()
+// }
 
 function getAll() {
-  return tree.getAll()
+  return tree.value.getAll()
 }
 
-function getItem(id: number | string): iTreeStore | undefined {
-  return tree.getItem(id)
+function getItem(id: TId): ITreeNode | undefined {
+  return tree.value.getItem(id)
 }
 
-function getChildren(id: number | string): iTreeStore[] {
-  return tree.getChildren(id)
+function getChildren(id: TId): ITreeNode[] {
+  return tree.value.getChildren(id)
 }
 
-function getAllChildren(id: number | string) {
-  return tree.getAllChildren(id)
+function getAllChildren(id: TId) {
+  return tree.value.getAllChildren(id)
 }
 
-function getAllParents(id: number | string) {
-  return tree.getAllParents(id)
+function getAllParents(id: TId) {
+  return tree.value.getAllParents(id)
 }
 
-function addItem(item: iTreeStore) {
-  tree.addItem(item)
+function addItem(item: ITreeNode) {
+  tree.value.addItem(item)
 }
 
-function updateItem(item: iTreeStore) {
-  tree.updateItem(item)
+function updateItem(item: ITreeNode) {
+  tree.value.updateItem(item)
 }
 
-function removeItem(id: number | string) {
-  tree.removeItem(id)
+function removeItem(id: TId) {
+  tree.value.removeItem(id)
 }
 </script>
 <template>
@@ -111,7 +109,7 @@ function removeItem(id: number | string) {
           </code>
         </div>
         <span class="separator"></span><span class="separator"></span>
-        <div>Удаляет элемент - <code>removeItem(id)</code></div>
+        <div>Удаляет элемент - <code>removeItem(id = 9)</code></div>
         <div>
           <code>
             {{ removeItem(9) }}
