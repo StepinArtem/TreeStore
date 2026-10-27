@@ -121,6 +121,9 @@ export class TreeStore<T extends ITreeNode> {
 
     // Удаляем из items
     this.items = this.items.filter((item) => !toRemove.has(item.id))
+
+    // Перестраиваем карту потомков
+    //this.createChildren()
   }
 
   updateItem(elem: T) {

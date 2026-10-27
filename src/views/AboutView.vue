@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { reactive } from 'vue'
+// import { reactive } from 'vue'
 import TreeGrid from '@/components/TreeGrid.vue'
 import { items } from '@/common/items'
 
 // Создаём глубокую копию, чтобы мутации не влияли на оригинал
-const treeItems = reactive(JSON.parse(JSON.stringify(items)))
+// const treeItems = reactive(JSON.parse(JSON.stringify(items)))
 </script>
 <template>
   <div class="about">
-    <TreeGrid :items="treeItems" />
+    <TreeGrid :items="items" />
   </div>
 </template>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { AgGridVue } from 'ag-grid-vue3'
+import { ref, computed, shallowRef, watch, onMounted, triggerRef } from 'vue'
+import { AgGridVue, type GridReadyEvent } from 'ag-grid-vue3'
 import { AllCommunityModule, ModuleRegistry, type AutoGroupColumnDef } from 'ag-grid-community'
 import { TreeDataModule } from 'ag-grid-enterprise'
 import { TreeStore, type ITreeNode, type TId } from '@/components/model/TreeStore'
@@ -21,14 +21,16 @@ const props = withDefaults(
   }
 )
 
-const tree = computed(() => new TreeStore<ITreeNode>(props.items ?? []))
+const tree = shallowRef({treestore: new TreeStore<ITreeNode>(props.items ?? [])})
 const searchQuery = ref('')
 const showModal = ref(false)
+const deleteConfirmId = ref<TId | null>(null)
+
 
 const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
 
 const rowData = computed(() => {
-  const allItems = tree.value.getAll()
+  const allItems = tree.value.treestore.getAll()
   if (!searchQuery.value.trim()) {
     return allItems
   }
@@ -56,7 +58,22 @@ const columnDefs = ref([
     field: 'label',
     flex: 2,
   },
+  {
+    headerName: '',
+    field: 'id',
+    width: 80,
+    cellRenderer: (params: { value: TId; data: ITreeNode }) => {
+      return `<button class="btn btn-sm btn-danger" onclick="window.handleGridDelete('${params.value}')">
+        <i class="bi bi-trash"></i>
+      </button>`
+    },
+  },
 ])
+
+// Глобальная функция для вызова из cellRenderer
+;(window as any).handleGridDelete = (id: TId) => {
+  handleDelete(id)
+}
 // конфиги
 const defaultColDef = ref({
   sortable: true,
@@ -75,7 +92,7 @@ const autoGroupColumnDef = ref<AutoGroupColumnDef>({
     }
     const itemId = params.data.id
     // Проверяем, есть ли элементы с parent === itemId (т.е. есть ли дети)
-    const hasChildren = tree.value.getAll().some((item) => item.parent === itemId)
+    const hasChildren = tree.value.treestore.getAll().some((item) => item.parent === itemId)
     return hasChildren ? 'Группа' : 'Элемент'
   },
 })
@@ -89,12 +106,33 @@ function getDataPath(data: ITreeNode): string[] {
     path.unshift(current.id)
     // Находим родителя текущего элемента
     if (current.parent !== null) {
-      current = tree.value.items.find((item) => item.id === current!.parent)
+      current = tree.value.treestore.items.find((item) => item.id === current!.parent)
     } else {
       current = undefined
     }
   }
   return path.map(String)
+}
+
+function handleDelete(id: TId) {
+  deleteConfirmId.value = id
+}
+
+function confirmDelete() {
+  if (deleteConfirmId.value !== null) {
+    tree.value.treestore.removeItem(deleteConfirmId.value)
+    triggerRef(tree)
+    deleteConfirmId.value = null
+  }
+}
+
+function cancelDelete() {
+  deleteConfirmId.value = null
+}
+
+function handleCloseModal() {
+  triggerRef(tree)
+  showModal.value = false
 }
 </script>
 <template>
@@ -139,8 +177,8 @@ function getDataPath(data: ITreeNode): string[] {
         class="modal fade"
         :class="{ show: showModal }"
         style="display: block; background-color: rgba(0, 0, 0, 0.5)"
-        @keyup.escape="showModal = false"
-        @click.self="showModal = false"
+        @keyup.escape="handleCloseModal"
+        @click.self="handleCloseModal"
       >
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
@@ -151,11 +189,57 @@ function getDataPath(data: ITreeNode): string[] {
               <button
                 type="button"
                 class="btn-close"
-                @click="showModal = false"
+                @click="handleCloseModal"
               ></button>
             </div>
             <div class="modal-body">
-              <TreeNodeForm :tree-store="tree" @added="(item) => { console.log('Added:', item); showModal = false }" />
+              <TreeNodeForm :tree-store="tree.treestore" @added="handleCloseModal" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модальное окно удаления -->
+      <div
+        v-if="deleteConfirmId !== null"
+        class="modal fade"
+        :class="{ show: deleteConfirmId !== null }"
+        style="display: block; background-color: rgba(0, 0, 0, 0.5)"
+        @keyup.escape="cancelDelete"
+        @click.self="cancelDelete"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+              <h5 class="modal-title">
+                <i class="bi bi-exclamation-triangle me-2"></i>Подтверждение удаления
+              </h5>
+              <button
+                type="button"
+                class="btn-close btn-close-white"
+                @click="cancelDelete"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <p class="mb-0">
+                Вы действительно хотите удалить этот узел и все его дочерние элементы?
+              </p>
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                @click="cancelDelete"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                class="btn btn-danger"
+                @click="confirmDelete"
+              >
+                <i class="bi bi-trash me-1"></i>Удалить
+              </button>
             </div>
           </div>
         </div>
