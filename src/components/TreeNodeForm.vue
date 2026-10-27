@@ -48,12 +48,14 @@ function handleSubmit() {
 </script>
 
 <template>
-  <div class="card border-0 shadow-sm">
+  <div class="card border-0">
+    <!--
     <div class="card-header bg-primary text-white">
       <h5 class="mb-0">
         <i class="bi bi-plus-circle me-2"></i>Добавить узел
       </h5>
     </div>
+  -->
     <div class="card-body">
       <form @submit.prevent="handleSubmit">
         <div class="mb-3">

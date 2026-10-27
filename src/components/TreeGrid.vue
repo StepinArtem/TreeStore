@@ -23,6 +23,7 @@ const props = withDefaults(
 
 const tree = computed(() => new TreeStore<ITreeNode>(props.items ?? []))
 const searchQuery = ref('')
+const showModal = ref(false)
 
 const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
 
@@ -99,7 +100,7 @@ function getDataPath(data: ITreeNode): string[] {
 <template>
   <div class="about">
     <div class="grid-container">
-      <!-- Поиск -->
+      <!-- Панель поиска и добавления -->
       <div class="row mb-3">
         <div class="col-12 col-md-6">
           <div class="input-group">
@@ -120,14 +121,43 @@ function getDataPath(data: ITreeNode): string[] {
             >
               <i class="bi bi-x-lg"></i>
             </button>
+            <button
+              class="btn btn-success"
+              type="button"
+              @click="showModal = true"
+              title="Добавить узел"
+            >
+              <i class="bi bi-plus-lg"></i>
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Форма добавления -->
-      <div class="row mb-3">
-        <div class="col-12 col-md-6">
-          <TreeNodeForm :tree-store="tree" @added="(item) => console.log('Added:', item)" />
+      <!-- Модальное окно -->
+      <div
+        v-if="showModal"
+        class="modal fade"
+        :class="{ show: showModal }"
+        style="display: block; background-color: rgba(0, 0, 0, 0.5)"
+        @keyup.escape="showModal = false"
+        @click.self="showModal = false"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="bi bi-plus-circle me-2"></i>Добавить узел
+              </h5>
+              <button
+                type="button"
+                class="btn-close"
+                @click="showModal = false"
+              ></button>
+            </div>
+            <div class="modal-body">
+              <TreeNodeForm :tree-store="tree" @added="(item) => { console.log('Added:', item); showModal = false }" />
+            </div>
+          </div>
         </div>
       </div>
 
